@@ -23,6 +23,7 @@ Vedant's search module should provide candidate records containing at least `ima
 - OpenCV 4.12 with YuNet for face detection
 - OpenCV SFace for local face embeddings and comparison
 - NumPy for numerical operations
+- Requests for the Google Custom Search API
 
 YuNet and SFace are CPU-friendly, avoid a large TensorFlow installation, and keep input images local. An embedding is a numerical representation of facial features; it is compared with another embedding rather than comparing image pixels directly.
 
@@ -64,6 +65,18 @@ candidates = [
 ]
 result = find_best_match("input/sample.jpg", candidates)
 ```
+
+## Genuine web/social search
+
+Vedant's search component uses the live Google Custom Search JSON API. It does not contain a hardcoded social-media post. Create a Programmable Search Engine configured to search public web/social pages, then set credentials in the shell. Keep these values private and never commit them:
+
+```bash
+export GOOGLE_CSE_API_KEY="your-api-key"
+export GOOGLE_CSE_ID="your-search-engine-id"
+venv/bin/python -m search.main "person name HH Goa 2026" --max-results 10
+```
+
+The command writes downloaded public images to `candidates/` and metadata to `candidates/results.json` (both are ignored by Git). Review the returned URLs and captions for authenticity, then pass the records with `image_path` to `find_best_match`. Search results are leads, not proof that a post is genuine; preserve the original URL and metadata for human review and blockchain recording.
 
 ## Blockchain verification
 

@@ -8,4 +8,3 @@ __pycache__/
 .idea/
 models/*.onnx
 blockchain/ledger.json
-candidates/

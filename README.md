@@ -65,6 +65,34 @@ candidates = [
 result = find_best_match("input/sample.jpg", candidates)
 ```
 
+## Blockchain verification
+
+Pranesh's component is a dependency-free local ledger demonstration. It hashes the selected post image with SHA-256 and records the hash, post metadata, timestamp, previous block hash, and current block hash. This makes later tampering detectable while keeping images local. A production chain adapter can replace the JSON ledger without changing the `upload` and `verify` data contract.
+
+Record the face-matched post:
+
+```bash
+venv/bin/python -m blockchain.main upload input/sample.jpg \
+	--post-json '{"url":"https://example.test/post/1","caption":"matched post"}'
+```
+
+Verify the recorded artifact:
+
+```bash
+venv/bin/python -m blockchain.main verify input/sample.jpg --block 0
+```
+
+Expected verification output includes:
+
+```json
+{
+	"verified": true,
+	"reasons": []
+}
+```
+
+Python integration uses `BlockchainLedger.upload(image_path, post_metadata)` and `BlockchainLedger.verify(image_path, block)`. If the image, metadata, or chain link changes, verification returns `verified: false` with reasons.
+
 ## Matching method
 
 SFace embeddings are compared with cosine similarity from 0 to 1. The default threshold is `0.363`, the OpenCV SFace cosine benchmark threshold for its published LFW evaluation. It is configurable because camera quality, pose, lighting, cropping, and the candidate source can change performance:
@@ -81,7 +109,7 @@ A candidate image containing multiple faces is accepted; each detected face is c
 venv/bin/python -m pytest -q
 ```
 
-The tests cover same-person-style embeddings, different embeddings, threshold configuration, invalid thresholds, and missing images. Real-image accuracy tests require consented sample photos and the two model files.
+The tests cover same-person-style embeddings, different embeddings, threshold configuration, invalid thresholds, missing images, successful ledger verification, changed artifacts, and changed block contents. Real-image accuracy tests require consented sample photos and the two model files.
 
 ## Known limitations
 

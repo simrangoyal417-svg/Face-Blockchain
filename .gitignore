@@ -8,3 +8,9 @@ __pycache__/
 .idea/
 models/*.onnx
 blockchain/ledger.json
+
+# Vedant local test files
+/data/input/
+/data/models/
+/data/output/
+filename

@@ -93,6 +93,23 @@ Expected verification output includes:
 
 Python integration uses `BlockchainLedger.upload(image_path, post_metadata)` and `BlockchainLedger.verify(image_path, block)`. If the image, metadata, or chain link changes, verification returns `verified: false` with reasons.
 
+## End-to-end integration
+
+The shared orchestrator connects the three responsibilities without coupling to a particular search implementation:
+
+1. Vedant saves genuine search results as a JSON list. Every selected candidate must include a local `image_path`; it may also include `url`, `caption`, and `platform`.
+2. Simran's face matcher ranks those candidate images.
+3. If the strongest candidate passes the threshold, Pranesh's ledger hashes that candidate image and metadata, then immediately verifies the recorded block.
+
+Run the complete local flow:
+
+```bash
+venv/bin/python -m src.pipeline input/sample.jpg candidates/results.json \
+	--ledger blockchain/ledger.json
+```
+
+The JSON output contains `face_match`, `blockchain_block`, and `blockchain_verification`. A non-match stops before blockchain recording, so an unrelated candidate is never presented as verified. The integration API is `run_pipeline(input_image, candidates, ledger_path, threshold)` in `src/pipeline.py`.
+
 ## Matching method
 
 SFace embeddings are compared with cosine similarity from 0 to 1. The default threshold is `0.363`, the OpenCV SFace cosine benchmark threshold for its published LFW evaluation. It is configurable because camera quality, pose, lighting, cropping, and the candidate source can change performance:

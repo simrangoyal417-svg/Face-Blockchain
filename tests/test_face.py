@@ -2,7 +2,9 @@ import numpy as np
 import pytest
 
 from face.detector import FaceDetectionError, detect_faces
-from face.matcher import compare_faces
+from face import matcher
+from face.encoder import FaceEncodingError
+from face.matcher import compare_faces, find_best_match
 
 
 def test_same_embedding_matches() -> None:
@@ -19,6 +21,41 @@ def test_threshold_is_configurable() -> None:
     result = compare_faces(np.array([[1.0, 0.0]]), np.array([[0.8, 0.6]]), threshold=0.9)
     assert result["similarity"] == pytest.approx(0.8)
     assert result["is_match"] is False
+
+
+def test_threshold_can_come_from_environment(monkeypatch) -> None:
+    monkeypatch.setenv("FACE_MATCH_THRESHOLD", "0.95")
+    result = compare_faces(np.array([[1.0, 0.0]]), np.array([[0.9, 0.4358899]]))
+    assert result["threshold"] == pytest.approx(0.95)
+    assert result["decision"] == "different_person"
+
+
+def test_highest_score_is_not_confirmed_without_threshold(monkeypatch) -> None:
+    embeddings = {
+        "input.jpg": [np.array([[1.0, 0.0]])],
+        "candidate.jpg": [np.array([[0.8, 0.6]])],
+    }
+    monkeypatch.setattr(matcher, "encode_faces", lambda path: embeddings[str(path)])
+
+    result = find_best_match("input.jpg", ["candidate.jpg"], threshold=0.9)
+
+    assert result["best_candidate"] == "candidate.jpg"
+    assert result["best_match"] is None
+    assert result["decision"] == "different_person"
+
+
+def test_no_face_candidate_has_explicit_decision(monkeypatch) -> None:
+    def encode(path):
+        if str(path) == "input.jpg":
+            return [np.array([[1.0, 0.0]])]
+        raise FaceEncodingError(f"No face detected in '{path}'")
+
+    monkeypatch.setattr(matcher, "encode_faces", encode)
+    result = find_best_match("input.jpg", ["candidate.jpg"])
+
+    assert result["best_match"] is None
+    assert result["decision"] == "no_face_detected"
+    assert result["candidates"][0]["decision"] == "no_face_detected"
 
 
 def test_missing_image_has_clear_error() -> None:

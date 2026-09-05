@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 from blockchain.ledger import BlockchainLedger
-from face.matcher import DEFAULT_COSINE_THRESHOLD, find_best_match
+from face.matcher import find_best_match
 
 from .models import PipelineResult, candidate_image_path
 
@@ -17,7 +17,7 @@ def run_pipeline(
 	input_image: str | Path,
 	candidates: Iterable[str | Path | dict[str, Any]],
 	ledger_path: str | Path = "blockchain/ledger.json",
-	threshold: float = DEFAULT_COSINE_THRESHOLD,
+	threshold: float | None = None,
 ) -> PipelineResult:
 	"""Match candidates and record/verify the winning candidate when matched.
 
@@ -44,7 +44,7 @@ def main() -> None:
 	parser.add_argument("input_image")
 	parser.add_argument("candidates_json", help="JSON file containing candidate records")
 	parser.add_argument("--ledger", default="blockchain/ledger.json")
-	parser.add_argument("--threshold", type=float, default=DEFAULT_COSINE_THRESHOLD)
+	parser.add_argument("--threshold", type=float, default=None)
 	args = parser.parse_args()
 	candidates = json.loads(Path(args.candidates_json).read_text(encoding="utf-8"))
 	if not isinstance(candidates, list):

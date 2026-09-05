@@ -20,6 +20,7 @@ def test_different_embedding_does_not_match() -> None:
 def test_threshold_is_configurable() -> None:
     result = compare_faces(np.array([[1.0, 0.0]]), np.array([[0.8, 0.6]]), threshold=0.9)
     assert result["similarity"] == pytest.approx(0.8)
+    assert result["threshold_percent"] == 90.0
     assert result["is_match"] is False
 
 

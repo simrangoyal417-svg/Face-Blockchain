@@ -43,6 +43,7 @@ def compare_faces(
         "similarity": similarity,
         "score_percent": round(max(0.0, similarity) * 100, 2),
         "threshold": threshold,
+        "threshold_percent": round(threshold * 100, 2),
         "is_match": similarity >= threshold,
         "decision": "same_person" if similarity >= threshold else "different_person",
     }
@@ -85,6 +86,7 @@ def find_best_match(
         "best_match": best["candidate"] if is_match else None,
         "best_candidate": best["candidate"],
         "score": best["score_percent"],
+        "threshold_percent": best["threshold_percent"],
         "is_match": is_match,
         "decision": "same_person" if is_match else "different_person",
         "threshold": threshold,

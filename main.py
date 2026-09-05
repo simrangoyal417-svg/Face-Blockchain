@@ -1,9 +1,3 @@
-"""Command-line entry point for local face identification."""
-
-import argparse
-import json
-
-from face.matcher import find_best_match
 """Run genuine image search, face matching, and local ledger verification."""
 
 import argparse
@@ -14,7 +8,7 @@ from pathlib import Path
 from blockchain.ledger import BlockchainLedger
 from face.detector import detect_faces
 from face.encoder import encode_faces
-from face.matcher import find_best_match
+from face.matcher import find_best_match, resolve_threshold
 from search.web_search import download_candidate_images, search_public_images
 
 
@@ -52,7 +46,14 @@ def run_integration(
 
 	winner = match["best_match"]
 	winner_path = Path(winner["image_path"])
-	print(f"7. Matching post confirmed: {winner.get('url') or winner_path}")
+	display_threshold = match.get("threshold")
+	if display_threshold is None:
+		display_threshold = resolve_threshold()
+	print(
+		f"7. Matching post confirmed: {winner.get('url') or winner_path} "
+		f"(score {match['score']:.2f}%, "
+		f"threshold {match.get('threshold_percent', display_threshold * 100):.2f}%)"
+	)
 
 	ledger = BlockchainLedger(ledger_path)
 	block = ledger.upload(winner_path, winner)
@@ -104,25 +105,3 @@ def main() -> int:
 
 if __name__ == "__main__":
 	raise SystemExit(main())
-
-
-def main() -> None:
-	parser = argparse.ArgumentParser(description="Find the best matching candidate face.")
-	parser.add_argument("input_image", help="Input face image")
-	parser.add_argument("candidate_images", nargs="+", help="Candidate image paths")
-	parser.add_argument(
-		"--threshold",
-		type=float,
-		default=None,
-		help="Cosine threshold from 0 to 1 (default: FACE_MATCH_THRESHOLD or 0.363)",
-	)
-	arguments = parser.parse_args()
-
-	result = find_best_match(
-		arguments.input_image, arguments.candidate_images, arguments.threshold
-	)
-	print(json.dumps(result, indent=2, default=str))
-
-
-if __name__ == "__main__":
-	main()

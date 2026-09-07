@@ -21,6 +21,15 @@ def test_discover_samples_uses_identity_directories(tmp_path) -> None:
     }
 
 
+def test_discover_samples_accepts_flat_same_person_directory(tmp_path) -> None:
+    (tmp_path / "one.png").write_bytes(b"")
+    (tmp_path / "two.jpeg").write_bytes(b"")
+
+    samples = discover_samples(tmp_path)
+
+    assert [sample.identity for sample in samples] == ["same_person/default"] * 2
+
+
 def test_threshold_metrics_counts_confusion_matrix() -> None:
     pairs = [
         PairResult(Path("same-1.jpg"), Path("same-2.jpg"), 0.80, "same_person"),
@@ -37,6 +46,9 @@ def test_threshold_metrics_counts_confusion_matrix() -> None:
         "true_negative": 1,
         "false_negative": 0,
         "accuracy": 2 / 3,
+        "precision": 0.5,
+        "recall": 1.0,
+        "f1_score": 2 / 3,
     }
 
 
@@ -50,3 +62,17 @@ def test_recommend_threshold_prefers_accuracy_then_false_positives() -> None:
     )
 
     assert result["threshold"] == 0.40
+
+
+def test_recommend_threshold_with_target_accuracy() -> None:
+    result = recommend_threshold(
+        [
+            {"threshold": 0.30, "accuracy": 0.85, "false_positive": 1},
+            {"threshold": 0.35, "accuracy": 0.95, "false_positive": 0},
+            {"threshold": 0.40, "accuracy": 0.80, "false_positive": 0},
+        ],
+        target_accuracy=0.90,
+    )
+
+    assert result["threshold"] == 0.35
+    assert result["accuracy"] >= 0.90

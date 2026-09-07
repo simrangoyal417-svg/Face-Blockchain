@@ -42,7 +42,7 @@ def test_highest_score_is_not_confirmed_without_threshold(monkeypatch) -> None:
 
     assert result["best_candidate"] == "candidate.jpg"
     assert result["best_match"] is None
-    assert result["decision"] == "different_person"
+    assert result["decision"] == "no_reliable_match"
 
 
 def test_no_face_candidate_has_explicit_decision(monkeypatch) -> None:
@@ -57,6 +57,24 @@ def test_no_face_candidate_has_explicit_decision(monkeypatch) -> None:
     assert result["best_match"] is None
     assert result["decision"] == "no_face_detected"
     assert result["candidates"][0]["decision"] == "no_face_detected"
+
+
+def test_multiple_faces_uses_strongest_candidate_face(monkeypatch) -> None:
+    embeddings = {
+        "input.jpg": [np.array([[1.0, 0.0]])],
+        "group.jpg": [
+            np.array([[0.0, 1.0]]),
+            np.array([[0.99, 0.01]]),
+        ],
+    }
+    monkeypatch.setattr(matcher, "encode_faces", lambda path: embeddings[str(path)])
+
+    result = find_best_match("input.jpg", [{"image_path": "group.jpg"}], threshold=0.9)
+
+    candidate_result = result["candidates"][0]
+    assert candidate_result["face_count"] == 2
+    assert candidate_result["selected_face_index"] == 1
+    assert candidate_result["is_match"] is True
 
 
 def test_missing_image_has_clear_error() -> None:

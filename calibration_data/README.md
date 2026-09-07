@@ -22,5 +22,7 @@ calibration_data/
 
 Images in the same identity directory are labeled `same_person`. Images from
 different identity directories are labeled `different_person`. Use consented,
-representative photos with one clearly visible face per image. This directory
-is intended for local evaluation data and should not contain API keys.
+representative photos with one clearly visible face per image. JPEG, PNG, WebP,
+BMP, TIFF, and AVIF files are supported when the local OpenCV build can decode
+them. This directory is intended for local evaluation data and should not
+contain API keys.

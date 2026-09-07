@@ -3,6 +3,7 @@
 import os
 from pathlib import Path
 from typing import Any, Iterable
+from urllib.parse import urlparse
 
 import numpy as np
 from dotenv import load_dotenv
@@ -14,6 +15,35 @@ load_dotenv()
 
 DEFAULT_COSINE_THRESHOLD = 0.363
 MATCH_THRESHOLD_ENV = "FACE_MATCH_THRESHOLD"
+HIGH_CONFIDENCE_MARGIN = 0.02
+
+
+def classify_confidence(similarity: float, threshold: float) -> str:
+    """Classify a score without changing the configured match threshold."""
+    if similarity < threshold:
+        return "REJECT"
+    if similarity >= threshold + HIGH_CONFIDENCE_MARGIN:
+        return "HIGH CONFIDENCE"
+    return "BORDERLINE"
+
+
+def _candidate_relevance(candidate: Any) -> int:
+    """Return a small metadata tie-breaker after face similarity is accepted."""
+    if not isinstance(candidate, dict):
+        return 0
+    score = 0
+    if candidate.get("platform"):
+        score += 1
+    if candidate.get("url") or candidate.get("source_url"):
+        score += 2
+        source = candidate.get("url") or candidate.get("source_url")
+        if "instagram.com" in urlparse(source).netloc.lower():
+            score += 2
+    if candidate.get("title") or candidate.get("caption"):
+        score += 1
+    if candidate.get("position") is not None:
+        score += max(0, 20 - int(candidate["position"]))
+    return score
 
 
 def resolve_threshold(threshold: float | None = None) -> float:
@@ -46,6 +76,7 @@ def compare_faces(
         "threshold_percent": round(threshold * 100, 2),
         "is_match": similarity >= threshold,
         "decision": "same_person" if similarity >= threshold else "different_person",
+		"confidence": classify_confidence(similarity, threshold),
     }
 
 
@@ -63,8 +94,20 @@ def find_best_match(
         try:
             candidate_embeddings = encode_faces(path)
             comparisons = [compare_faces(input_embedding, embedding, threshold) for embedding in candidate_embeddings]
-            best = max(comparisons, key=lambda result: result["similarity"])
-            results.append({"candidate": candidate, **best})
+            best_index, best = max(
+                enumerate(comparisons), key=lambda item: item[1]["similarity"]
+            )
+            results.append(
+                {
+                    "candidate": candidate,
+                    **best,
+                    "face_detected": True,
+                    "face_count": len(candidate_embeddings),
+                    "face_similarities": [item["similarity"] for item in comparisons],
+                    "selected_face_index": best_index,
+					"confidence": classify_confidence(best["similarity"], threshold),
+                }
+            )
         except FaceEncodingError as error:
             message = str(error)
             decision = "no_face_detected" if "No face detected" in message else "error"
@@ -80,12 +123,30 @@ def find_best_match(
             "threshold": threshold,
             "candidates": results,
         }
-    best = max(valid_results, key=lambda result: result["similarity"])
-    is_match = bool(best["is_match"])
+    matching_results = [result for result in valid_results if result["is_match"]]
+    if not matching_results:
+        best_candidate = max(valid_results, key=lambda result: result["similarity"])
+        return {
+            "best_match": None,
+            "best_candidate": best_candidate["candidate"],
+            "score": best_candidate["score_percent"],
+            "similarity": best_candidate["similarity"],
+            "threshold_percent": best_candidate["threshold_percent"],
+            "is_match": False,
+            "decision": "no_reliable_match",
+            "threshold": threshold,
+            "candidates": results,
+        }
+    best = max(
+        matching_results,
+        key=lambda result: (result["similarity"], _candidate_relevance(result["candidate"])),
+    )
+    is_match = True
     return {
         "best_match": best["candidate"] if is_match else None,
         "best_candidate": best["candidate"],
         "score": best["score_percent"],
+        "similarity": best["similarity"],
         "threshold_percent": best["threshold_percent"],
         "is_match": is_match,
         "decision": "same_person" if is_match else "different_person",

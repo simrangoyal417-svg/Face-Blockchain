@@ -6,7 +6,7 @@ from typing import Any
 import cv2
 import numpy as np
 
-from .detector import FaceDetectionError, detect_faces
+from .detector import FaceDetectionError, detect_raw_faces
 
 
 class FaceEncodingError(ValueError):
@@ -47,24 +47,22 @@ def encode_faces(
 ) -> list[np.ndarray]:
     """Return one SFace embedding for every detected face in an image."""
     path = Path(image_path)
-    image = cv2.imread(str(path))
-    if image is None:
-        raise FaceEncodingError(f"Invalid or unsupported image: {path}")
     try:
-        detections = detect_faces(path, detector_model)
+        image, raw_detections = detect_raw_faces(path, detector_model)
         _, recognizer = _load_models(
             detector_model, recognizer_model, (image.shape[1], image.shape[0])
         )
-        detector = cv2.FaceDetectorYN.create(
-            str(detector_model), "", (image.shape[1], image.shape[0]), 0.9, 0.3, 5000
-        )
-        _, raw_detections = detector.detect(image)
-        if raw_detections is None or len(raw_detections) != len(detections):
-            raise FaceEncodingError(f"Could not prepare detected faces in '{path}'")
         embeddings = []
         for face in raw_detections:
             aligned = recognizer.alignCrop(image, face)
-            embeddings.append(recognizer.feature(aligned))
+            f1 = recognizer.feature(aligned)
+            aligned_flip = cv2.flip(aligned, 1)
+            f2 = recognizer.feature(aligned_flip)
+            f = f1 + f2
+            norm = np.linalg.norm(f)
+            if norm > 0:
+                f = f / norm
+            embeddings.append(f)
         return embeddings
     except FaceDetectionError as error:
         raise FaceEncodingError(str(error)) from error
